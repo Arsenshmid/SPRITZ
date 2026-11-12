@@ -1,0 +1,493 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Spritz Скорочтение</title>
+    <style>
+        :root {
+            --bg-color: #121212;
+            --card-bg: #1e1e1e;
+            --text-color: #e0e0e0;
+            --accent-color: #ff4757;
+            --border-color: #333333;
+            --btn-bg: #2f3542;
+            --btn-hover: #57606f;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 700px;
+            background-color: var(--card-bg);
+            padding: 30px;
+            border-radius: 16px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+        }
+
+        /* Окно отображения Spritz */
+        .spritz-reader {
+            position: relative;
+            height: 120px;
+            background-color: #000000;
+            border-top: 2px solid var(--border-color);
+            border-bottom: 2px solid var(--border-color);
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Courier New', Courier, monospace; /* Моноширинный шрифт для точного центрирования */
+            font-size: 42px;
+            font-weight: bold;
+            user-select: none;
+            overflow: hidden;
+        }
+
+        /* Направляющие риски по центру */
+        .spritz-reader::before,
+        .spritz-reader::after {
+            content: '';
+            position: absolute;
+            left: 50%;
+            width: 2px;
+            height: 15px;
+            background-color: var(--border-color);
+            transform: translateX(-50%);
+        }
+        .spritz-reader::before { top: 0; }
+        .spritz-reader::after { bottom: 0; }
+
+        /* Контейнер для выравнивания слова по красной букве */
+        .word-container {
+            display: flex;
+            width: 100%;
+        }
+
+        .word-left {
+            flex: 1;
+            text-align: right;
+            color: var(--text-color);
+        }
+
+        .word-orp {
+            color: var(--accent-color);
+            text-align: center;
+        }
+
+        .word-right {
+            flex: 1;
+            text-align: left;
+            color: var(--text-color);
+        }
+
+        /* Прогресс бар */
+        .progress-container {
+            width: 100%;
+            height: 6px;
+            background-color: var(--border-color);
+            border-radius: 3px;
+            margin-bottom: 10px;
+            cursor: pointer;
+            overflow: hidden;
+        }
+
+        .progress-bar {
+            height: 100%;
+            width: 0%;
+            background-color: var(--accent-color);
+            transition: width 0.1s linear;
+        }
+
+        .stats {
+            display: flex;
+            justify-content: space-between;
+            font-size: 13px;
+            color: #888;
+            margin-bottom: 25px;
+        }
+
+        /* Панель управления */
+        .controls {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 25px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .btn-group {
+            display: flex;
+            gap: 10px;
+        }
+
+        button {
+            background-color: var(--btn-bg);
+            color: white;
+            border: none;
+            padding: 10px 18px;
+            border-radius: 8px;
+            font-size: 15px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            font-weight: 500;
+        }
+
+        button:hover {
+            background-color: var(--btn-hover);
+        }
+
+        button.primary {
+            background-color: var(--accent-color);
+        }
+
+        button.primary:hover {
+            background-color: #ff6b81;
+        }
+
+        /* Регулятор скорости */
+        .speed-control {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex: 1;
+            min-width: 250px;
+            justify-content: flex-end;
+        }
+
+        input[type="range"] {
+            flex: 1;
+            max-width: 180px;
+            accent-color: var(--accent-color);
+            cursor: pointer;
+        }
+
+        .wpm-display {
+            min-width: 85px;
+            text-align: right;
+            font-variant-numeric: tabular-nums;
+            font-weight: bold;
+        }
+
+        /* Поле ввода текста */
+        textarea {
+            width: 100%;
+            height: 150px;
+            background-color: #121212;
+            color: var(--text-color);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 12px;
+            font-size: 15px;
+            resize: vertical;
+            box-sizing: border-box;
+            font-family: inherit;
+        }
+
+        textarea:focus {
+            outline: none;
+            border-color: var(--accent-color);
+        }
+
+        .hint {
+            margin-top: 8px;
+            font-size: 12px;
+            color: #777;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <!-- Экран вывода слов -->
+    <div class="spritz-reader" id="readerDisplay">
+        <div class="word-container">
+            <span class="word-left" id="wordLeft">Гото</span>
+            <span class="word-orp" id="wordOrp">в</span>
+            <span class="word-right" id="wordRight">ы?</span>
+        </div>
+    </div>
+
+    <!-- Прогресс -->
+    <div class="progress-container" id="progressContainer" title="Кликните для перемотки">
+        <div class="progress-bar" id="progressBar"></div>
+    </div>
+    <div class="stats">
+        <span id="wordCounter">Слово: 0 / 0</span>
+        <span id="timeRemaining">Осталось: 0 сек</span>
+    </div>
+
+    <!-- Управление -->
+    <div class="controls">
+        <div class="btn-group">
+            <button id="playPauseBtn" class="primary">Старт</button>
+            <button id="restartBtn">Сначала</button>
+            <button id="stepBackBtn" title="Назад на 5 слов">« 5</button>
+        </div>
+
+        <div class="speed-control">
+            <label for="speedSlider">Скорость:</label>
+            <input type="range" id="speedSlider" min="100" max="1000" step="25" value="300">
+            <span class="wpm-display"><span id="wpmValue">300</span> сл/м</span>
+        </div>
+    </div>
+
+    <!-- Текст -->
+    <textarea id="textInput" placeholder="Вставьте сюда текст для чтения...">Технология Spritz позволяет читать тексты значительно быстрее обычного. Секрет заключается в том, что вам не нужно двигать глазами по строкам. Каждое слово появляется в одном и том же месте, а специальная красная буква помогает мозгу мгновенно распознавать его смысл. Попробуйте изменить скорость ползунком прямо во время чтения!</textarea>
+    <div class="hint">Горячие клавиши: <b>Пробел</b> — Пауза/Старт, <b>Стрелки Вверх/Вниз</b> — Изменить скорость, <b>Влево/Вправо</b> — Перемотка.</div>
+</div>
+
+<script>
+    const textInput = document.getElementById('textInput');
+    const playPauseBtn = document.getElementById('playPauseBtn');
+    const restartBtn = document.getElementById('restartBtn');
+    const stepBackBtn = document.getElementById('stepBackBtn');
+    const speedSlider = document.getElementById('speedSlider');
+    const wpmValue = document.getElementById('wpmValue');
+    
+    const wordLeft = document.getElementById('wordLeft');
+    const wordOrp = document.getElementById('wordOrp');
+    const wordRight = document.getElementById('wordRight');
+    
+    const progressBar = document.getElementById('progressBar');
+    const progressContainer = document.getElementById('progressContainer');
+    const wordCounter = document.getElementById('wordCounter');
+    const timeRemaining = document.getElementById('timeRemaining');
+
+    let words = [];
+    let currentIndex = 0;
+    let isPlaying = false;
+    let timerId = null;
+    let wpm = parseInt(speedSlider.value, 10);
+
+    // Разбиваем текст на массив слов
+    function parseText() {
+        const rawText = textInput.value.trim();
+        // Разделяем по пробелам и переносам строк, убирая пустые элементы
+        words = rawText ? rawText.split(/\s+/) : [];
+        if (currentIndex >= words.length) {
+            currentIndex = 0;
+        }
+        updateStats();
+        if (words.length > 0 && !isPlaying) {
+            renderWord(words[currentIndex]);
+        }
+    }
+
+    // Вычисление индекса оптимальной точки распознавания (ORP)
+    function getORPIndex(word) {
+        // Убираем знаки препинания по краям для точного расчета длины самого слова
+        const cleanWord = word.replace(/^[«"'(]+|[»"'),.!?;:—-]+$/g, '');
+        const len = cleanWord.length;
+        
+        let orp = 0;
+        if (len <= 1) orp = 0;
+        else if (len >= 2 && len <= 5) orp = 1;
+        else if (len >= 6 && len <= 9) orp = 2;
+        else if (len >= 10 && len <= 13) orp = 3;
+        else orp = 4;
+
+        // Корректируем индекс, если в начале слова были кавычки/скобки
+        const leadingPunctuationMatch = word.match(/^[«"'(]+/);
+        const offset = leadingPunctuationMatch ? leadingPunctuationMatch[0].length : 0;
+        
+        return Math.min(orp + offset, word.length - 1);
+    }
+
+    // Отрисовка слова с центрированием по ORP-букве
+    function renderWord(word) {
+        if (!word) {
+            wordLeft.textContent = '';
+            wordOrp.textContent = '';
+            wordRight.textContent = '';
+            return;
+        }
+        const orpIdx = getORPIndex(word);
+        wordLeft.textContent = word.slice(0, orpIdx);
+        wordOrp.textContent = word[orpIdx];
+        wordRight.textContent = word.slice(orpIdx + 1);
+    }
+
+    // Расчет задержки для конкретного слова (учет знаков препинания и длины)
+    function getWordDelay(word) {
+        let baseDelay = 60000 / wpm; // миллисекунд на слово
+        
+        // Дополнительная пауза на концах предложений
+        if (/[.!?]$/.test(word)) {
+            return baseDelay * 2.2;
+        }
+        // Небольшая пауза на запятых, двоеточиях и тире
+        if (/[,;:—-]$/.test(word)) {
+            return baseDelay * 1.5;
+        }
+        // Чуть больше времени на очень длинные слова
+        if (word.length > 10) {
+            return baseDelay * 1.2;
+        }
+        return baseDelay;
+    }
+
+    // Основной цикл воспроизведения
+    function step() {
+        if (!isPlaying) return;
+
+        if (currentIndex >= words.length) {
+            pause();
+            currentIndex = 0;
+            updateStats();
+            return;
+        }
+
+        const currentWord = words[currentIndex];
+        renderWord(currentWord);
+        updateStats();
+
+        const delay = getWordDelay(currentWord);
+        currentIndex++;
+
+        timerId = setTimeout(step, delay);
+    }
+
+    function play() {
+        if (words.length === 0) parseText();
+        if (words.length === 0) return;
+
+        if (currentIndex >= words.length) {
+            currentIndex = 0;
+        }
+
+        isPlaying = true;
+        playPauseBtn.textContent = 'Пауза';
+        step();
+    }
+
+    function pause() {
+        isPlaying = false;
+        playPauseBtn.textContent = 'Старт';
+        clearTimeout(timerId);
+    }
+
+    function togglePlay() {
+        if (isPlaying) {
+            pause();
+        } else {
+            play();
+        }
+    }
+
+    // Обновление прогресс-бара и счетчиков
+    function updateStats() {
+        const total = words.length;
+        const current = Math.min(currentIndex + 1, total);
+        const progressPercent = total > 0 ? ((currentIndex / total) * 100) : 0;
+        
+        progressBar.style.width = `${progressPercent}%`;
+        wordCounter.textContent = `Слово: ${total > 0 ? current : 0} / ${total}`;
+
+        const wordsLeft = Math.max(0, total - currentIndex);
+        const secondsLeft = Math.ceil((wordsLeft / wpm) * 60);
+        
+        if (secondsLeft >= 60) {
+            const mins = Math.floor(secondsLeft / 60);
+            const secs = secondsLeft % 60;
+            timeRemaining.textContent = `Осталось: ${mins} мин ${secs} сек`;
+        } else {
+            timeRemaining.textContent = `Осталось: ${secondsLeft} сек`;
+        }
+    }
+
+    // --- Обработчики событий ---
+
+    playPauseBtn.addEventListener('click', togglePlay);
+
+    restartBtn.addEventListener('click', () => {
+        pause();
+        currentIndex = 0;
+        if (words.length > 0) renderWord(words[0]);
+        updateStats();
+    });
+
+    stepBackBtn.addEventListener('click', () => {
+        currentIndex = Math.max(0, currentIndex - 6); // -6, т.к. индекс уже инкрементирован на 1 вперед
+        if (words.length > 0) renderWord(words[currentIndex]);
+        updateStats();
+    });
+
+    // Динамическое изменение скорости на лету
+    speedSlider.addEventListener('input', (e) => {
+        wpm = parseInt(e.target.value, 10);
+        wpmValue.textContent = wpm;
+        updateStats();
+
+        // Если текст сейчас читается, перезапускаем таймер с новой скоростью немедленно
+        if (isPlaying) {
+            clearTimeout(timerId);
+            const prevWord = words[Math.max(0, currentIndex - 1)] || '';
+            timerId = setTimeout(step, getWordDelay(prevWord));
+        }
+    });
+
+    // Обновление при вставке или редактировании текста
+    textInput.addEventListener('input', () => {
+        pause();
+        currentIndex = 0;
+        parseText();
+    });
+
+    // Перемотка кликом по прогресс-бару
+    progressContainer.addEventListener('click', (e) => {
+        if (words.length === 0) return;
+        const rect = progressContainer.getBoundingClientRect();
+        const clickX = e.clientX - rect.left;
+        const ratio = Math.max(0, Math.min(1, clickX / rect.width));
+        
+        currentIndex = Math.floor(ratio * words.length);
+        renderWord(words[currentIndex]);
+        updateStats();
+    });
+
+    // Управление с клавиатуры (когда фокус не в текстовом поле)
+    document.addEventListener('keydown', (e) => {
+        if (document.activeElement === textInput) return;
+
+        if (e.code === 'Space') {
+            e.preventDefault();
+            togglePlay();
+        } else if (e.code === 'ArrowUp') {
+            e.preventDefault();
+            speedSlider.value = Math.min(1000, wpm + 25);
+            speedSlider.dispatchEvent(new Event('input'));
+        } else if (e.code === 'ArrowDown') {
+            e.preventDefault();
+            speedSlider.value = Math.max(100, wpm - 25);
+            speedSlider.dispatchEvent(new Event('input'));
+        } else if (e.code === 'ArrowLeft') {
+            stepBackBtn.click();
+        } else if (e.code === 'ArrowRight') {
+            currentIndex = Math.min(words.length - 1, currentIndex + 4);
+            if (words.length > 0) renderWord(words[currentIndex]);
+            updateStats();
+        }
+    });
+
+    // Инициализация при загрузке
+    parseText();
+</script>
+
+</body>
+</html>
